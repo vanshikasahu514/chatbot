@@ -3,8 +3,12 @@ import re
 from datetime import datetime
 from django.conf import settings
 from groq import Groq
+# from gemini import Gemini
+import google.generativeai as genai
 
 client = Groq(api_key=settings.GROQ_API_KEY)
+genai.configure(api_key=settings.GEMINI_API_KEY)
+gemini_client = genai.GenerativeModel("gemini-pro")
 
 # ── Must be at top level so views.py can import it ────────────────────────
 conversation_history = []
@@ -103,6 +107,7 @@ def _ask_groq(user_input: str) -> str:
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
+            
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 *conversation_history,
