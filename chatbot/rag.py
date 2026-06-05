@@ -1,13 +1,9 @@
 """
-rag.py  —  Your existing file with fixes applied:
-  1. Fallback when vector store is empty or not built yet
-  2. Better prompt: company questions → docs, other questions → Gemini knowledge
-  3. Proper error handling
+rag.py — Complete rewrite, path issue fixed
 """
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -15,9 +11,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# ── Absolute path so it works from any working directory ──────────────────
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH  = os.path.join(BASE_DIR, "my_company_db")   # always project root
+
 
 class RAGApplication:
-    def __init__(self, db_path="my_company_db"):
+    def __init__(self, db_path=None):
+        db_path = db_path or DB_PATH
+
+        print(f"[RAG] Loading vector store from: {db_path}")
+        print(f"[RAG] Exists: {os.path.exists(db_path)}")
 
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
@@ -30,9 +34,12 @@ class RAGApplication:
             persist_directory=db_path
         )
 
-        # k=6 — retrieve top 6 matching chunks from your company PDF
+        count = self.vector_store._collection.count()
+        print(f"[RAG] Chunks in DB: {count}")
+
         self.retriever = self.vector_store.as_retriever(
-            search_kwargs={"k": 6}
+            search_type="similarity",
+            search_kwargs={"k": 8}
         )
 
         self.llm = ChatGoogleGenerativeAI(
@@ -41,46 +48,77 @@ class RAGApplication:
             temperature=0
         )
 
+    def _get_context(self, question: str) -> str:
+        try:
+            docs = self.retriever.invoke(question)
+            if docs:
+                ctx = "\n\n---\n\n".join(d.page_content for d in docs)
+                print(f"[RAG] Retrieved {len(docs)} chunks, context length: {len(ctx)}")
+                return ctx
+        except Exception as e:
+            print(f"[RAG] Retrieval error: {e}")
+        return ""
+
     def answer_query(self, question: str) -> str:
-        # ── UPDATED PROMPT ─────────────────────────────────────────────────
-        # Two-mode behaviour:
-        #   • Company questions → answer strictly from retrieved context
-        #   • General/tech questions → answer from Gemini's own knowledge
-        template = """You are Syn, the official AI assistant for Syandrixin — \
-a technology company specializing in software, AI, and web development.
+        context = self._get_context(question)
 
-RULES:
-1. If the retrieved context below contains relevant information about the question, \
-use it to give a detailed, well-structured answer. Use bullet points or numbered \
-lists where appropriate.
-2. If the context is empty or not relevant to the question, answer using your \
-own general knowledge — especially for tech, coding, science, or general topics.
-3. Never say "I don't have enough information" for general knowledge questions — \
-you are a smart assistant. Only say that if it is a specific Syandrixin internal \
-question (e.g. employee names, private pricing) that isn't in the context.
-4. Never mention Gemini, Google, LangChain, or any underlying AI technology. \
-You are simply Syn by Syandrixin.
-5. Always be professional, friendly, and concise unless detail is needed.
+        if not context:
+            print("[RAG] No context found — using general knowledge")
+            template = """You are Syn, the AI assistant for Syandrix Infotech — \
+a technology company.
+Answer this question from your general knowledge.
+Be helpful, structured, use bullet points where appropriate.
+Never mention Gemini, Google, or LangChain.
 
-Retrieved context from Syandrixin documents:
+Question: {question}
+Answer:"""
+            prompt = ChatPromptTemplate.from_template(template)
+            chain = ({"question": lambda x: x} | prompt | self.llm | StrOutputParser())
+            return chain.invoke(question)
+
+        # Context found — always use it
+        print("[RAG] Context found — answering from documents")
+        template = """You are Syn, the official AI assistant for Syandrix Infotech Pvt. Ltd.
+
+You have access to Syandrix's official company documents below.
+Your job is to extract and present ALL relevant information from these documents to answer the question.
+
+STRICT RULES:
+1. ALWAYS answer from the document context if ANY relevant information exists.
+2. Do NOT say "I don't have information" if the answer is in the context — look carefully.
+3. For company questions (CEO, services, team, contact, pricing etc.), use the document data.
+4. For general tech questions, use your own knowledge AND the context if relevant.
+5. Format answers with bullet points, sections, or tables where it helps clarity.
+6. Never mention Gemini, Google, LangChain, or any AI technology.
+7. You are Syn — Syandrix's own AI assistant.
+
+=== SYANDRIX OFFICIAL DOCUMENTS ===
 {context}
+====================================
 
 Question: {question}
 
-Answer:"""
+Answer (use the documents above — be thorough and complete):"""
 
         prompt = ChatPromptTemplate.from_template(template)
-
         chain = (
-            {"context": self.retriever, "question": RunnablePassthrough()}
+            {"context": lambda _: context, "question": lambda x: x}
             | prompt
             | self.llm
             | StrOutputParser()
         )
-
         return chain.invoke(question)
 
 
 if __name__ == "__main__":
     app = RAGApplication()
-    print(app.answer_query("how many projects has Syandrixin delivered so far?"))
+    tests = [
+        "who is the CEO of Syandrix?",
+        "what services does Syandrix offer?",
+        "tell me about Syandrix",
+        "what is machine learning?",
+    ]
+    for q in tests:
+        print(f"\nQ: {q}")
+        print(f"A: {app.answer_query(q)}")
+        print("-" * 60)

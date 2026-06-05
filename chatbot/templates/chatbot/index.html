@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
   <meta charset="UTF-8" />
-  <title>Syn - Syandrix AI Assistant</title>
+  <title>Syn - Sayndrix AI Assistant</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: 'Segoe UI', sans-serif;
-      background: #0f0f1a;
+      background: #ffffff;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -17,20 +18,22 @@
 
     .chat-container {
       width: 420px;
-      background: #1a1a2e;
+      background: #ffffff;
       border-radius: 16px;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.12);
+      border: 1px solid rgba(242,140,40,0.25);
       height: 580px;
     }
 
     /* ── Header ── */
     .chat-header {
-      background: linear-gradient(135deg, #6c63ff, #3f3d9e);
+      background: #F28C28;
+      border-bottom: 2px solid #d47820;
       padding: 18px 22px;
-      color: white;
+      color: #ffffff;
       font-size: 1.1rem;
       font-weight: 600;
       display: flex;
@@ -41,22 +44,25 @@
     .dot {
       width: 10px;
       height: 10px;
-      background: #7effa0;
+      background: #ffffff;
       border-radius: 50%;
     }
 
     .clear-btn {
       margin-left: auto;
       background: transparent;
-      border: 1px solid rgba(255,255,255,0.35);
-      color: white;
+      border: 1px solid rgba(255,255,255,0.5);
+      color: #ffffff;
       border-radius: 8px;
       padding: 4px 12px;
       cursor: pointer;
       font-size: 0.78rem;
       transition: background 0.2s;
     }
-    .clear-btn:hover { background: rgba(255,255,255,0.15); }
+
+    .clear-btn:hover {
+      background: rgba(255,255,255,0.15);
+    }
 
     /* ── Messages ── */
     .messages {
@@ -66,6 +72,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
+      background: #ffffff;
     }
 
     .message {
@@ -75,7 +82,6 @@
       font-size: 0.9rem;
       line-height: 1.5;
       animation: fadeUp 0.2s ease;
-      white-space: pre-wrap;       /* keeps newlines from OpenAI replies */
       word-break: break-word;
     }
 
@@ -85,22 +91,103 @@
     }
 
     .user {
-      background: #6c63ff;
-      color: #fff;
+      background: #F28C28;
+      color: #000000;
       align-self: flex-end;
       border-bottom-right-radius: 4px;
     }
 
     .bot {
-      background: #2a2a45;
-      color: #e0e0ff;
+      background: #ffffff;
+      color: #000000;
       align-self: flex-start;
       border-bottom-left-radius: 4px;
+      border: 1px solid rgba(242,140,40,0.25);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      max-width: 90%;
+    }
+
+    /* ── Markdown content inside bot messages ── */
+    .bot p {
+      margin: 0 0 8px 0;
+    }
+    .bot p:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Ordered lists */
+    .bot ol {
+      padding-left: 20px;
+      margin: 6px 0;
+      list-style-type: decimal;
+    }
+
+    /* Unordered lists */
+    .bot ul {
+      padding-left: 20px;
+      margin: 4px 0;
+      list-style-type: disc;
+    }
+
+    /* Nested unordered lists (■ style bullets) */
+    .bot ul ul,
+    .bot ol ul {
+      padding-left: 18px;
+      margin: 2px 0;
+      list-style-type: square;
+    }
+
+    .bot li {
+      margin: 3px 0;
+      line-height: 1.5;
+    }
+
+    .bot li > p {
+      margin: 0;
+    }
+
+    /* Code blocks */
+    .bot pre {
+      background: #f4f4f4;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin: 8px 0;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 0.82rem;
+    }
+
+    .bot code {
+      background: #f0f0f0;
+      border-radius: 4px;
+      padding: 1px 5px;
+      font-size: 0.85em;
+      font-family: 'Courier New', monospace;
+    }
+
+    .bot pre code {
+      background: transparent;
+      padding: 0;
+      font-size: inherit;
+    }
+
+    /* Strong / bold */
+    .bot strong {
+      font-weight: 700;
+    }
+
+    /* Headings inside bot */
+    .bot h1, .bot h2, .bot h3, .bot h4 {
+      margin: 8px 0 4px;
+      font-weight: 700;
+      line-height: 1.3;
     }
 
     /* ── Typing indicator ── */
     .typing {
-      background: #2a2a45;
+      background: #ffffff;
+      border: 1px solid rgba(242,140,40,0.25);
       align-self: flex-start;
       border-bottom-left-radius: 4px;
       padding: 12px 16px;
@@ -113,7 +200,7 @@
     .typing span {
       width: 7px;
       height: 7px;
-      background: #6c63ff;
+      background: #F28C28;
       border-radius: 50%;
       animation: bounce 1.2s infinite;
     }
@@ -129,38 +216,40 @@
     .chat-input {
       display: flex;
       padding: 14px;
-      border-top: 1px solid #2a2a45;
+      border-top: 1px solid #e0e0e0;
       gap: 10px;
+      background: #ffffff;
     }
 
     .chat-input input {
       flex: 1;
-      background: #2a2a45;
-      border: none;
+      background: #f5f5f5;
+      border: 1px solid rgba(242,140,40,0.3);
       border-radius: 24px;
       padding: 10px 16px;
-      color: #e0e0ff;
+      color: #111111;
       font-size: 0.9rem;
       outline: none;
     }
-    .chat-input input::placeholder { color: #666; }
+    .chat-input input::placeholder { color: #aaaaaa; }
+    .chat-input input:focus { border-color: #F28C28; }
 
     .chat-input button {
-      background: #6c63ff;
+      background: #F28C28;
       border: none;
       border-radius: 50%;
       width: 42px;
       height: 42px;
       cursor: pointer;
-      color: white;
+      color: #000000;
       font-size: 1.2rem;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: background 0.2s;
     }
-    .chat-input button:hover  { background: #5a54d4; }
-    .chat-input button:disabled { background: #444; cursor: not-allowed; }
+    .chat-input button:hover  { background: #d47820; }
+    .chat-input button:disabled { background: #cccccc; cursor: not-allowed; }
   </style>
 </head>
 <body>
@@ -169,12 +258,12 @@
 
   <div class="chat-header">
     <div class="dot"></div>
-    Syn - Syandrix AI Assistant
+    Syn - Sayndrix AI Assistant
     <button class="clear-btn" onclick="clearChat()">🗑 Clear</button>
   </div>
 
   <div class="messages" id="messages">
-    <div class="message bot">👋 Hi! I'm Syn, Syandrix's AI assistant. Try saying hello, ask for a joke, or type "help"!</div>
+    <div class="message bot">👋 Hi! I'm Syn, Sayndrix's AI assistant.</div>
   </div>
 
   <div class="chat-input">
@@ -185,7 +274,7 @@
 </div>
 
 <script>
-  const input   = document.getElementById("userInput");
+  const input    = document.getElementById("userInput");
   const messages = document.getElementById("messages");
   const sendBtn  = document.getElementById("sendBtn");
 
@@ -198,7 +287,13 @@
   function addMessage(text, sender) {
     const div = document.createElement("div");
     div.className = `message ${sender}`;
-    div.textContent = text;
+
+    if (sender === "bot") {
+      div.innerHTML = marked.parse(text);
+    } else {
+      div.textContent = text;
+    }
+
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
     return div;
