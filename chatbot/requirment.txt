@@ -1,0 +1,33 @@
+# LangChain Core
+langchain
+langchain-core
+langchain-community
+
+# Google Gemini Integration
+langchain-google-genai
+google-generativeai
+
+# Hugging Face Embeddings
+langchain-huggingface
+sentence-transformers
+
+# Vector Database
+langchain-chroma
+chromadb
+
+# PDF Loader (used by PDFPlumberLoader)
+pdfplumber
+
+# Text Splitter
+langchain-text-splitters
+
+# Environment Variable Management
+python-dotenv
+
+# Django
+django
+
+# Voice Assistant Libraries
+SpeechRecognition
+pyttsx3
+pyaudio

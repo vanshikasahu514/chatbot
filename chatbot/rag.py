@@ -4,6 +4,8 @@ rag.py — Complete rewrite, path issue fixed
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
+import speech_recognition as sr
+import pyttsx3
 from langchain_core.output_parsers import StrOutputParser
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
@@ -15,6 +17,50 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DB_PATH  = os.path.join(BASE_DIR, "my_company_db")   # always project root
 
+class VoiceAssistant:
+    """Handles Speech-to-Text and Text-to-Speech."""
+
+    def __init__(self):
+        # --- Speech Recognition (STT) ---
+        self.recognizer = sr.Recognizer()
+        self.recognizer.energy_threshold = 300   # mic sensitivity
+        self.recognizer.pause_threshold = 1.0    # seconds of silence = end of speech
+
+        # --- Text to Speech (TTS) ---
+        self.tts_engine = pyttsx3.init()
+        self.tts_engine.setProperty("rate", 165)    # speaking speed
+        self.tts_engine.setProperty("volume", 1.0)  # 0.0 to 1.0
+
+    def listen(self) -> str | None:
+        """Record from microphone and return transcribed text."""
+        with sr.Microphone() as source:
+            print("\n🎙️  Adjusting for ambient noise... please wait.")
+            self.recognizer.adjust_for_ambient_noise(source, duration=1)
+            print("🎙️  Listening... speak your question now.")
+            try:
+                audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=15)
+            except sr.WaitTimeoutError:
+                print("⚠️  No speech detected. Try again.")
+                return None
+
+        print("⏳  Transcribing...")
+        try:
+            text = self.recognizer.recognize_google(audio)  # uses Google Web STT (free)
+            print(f"✅  You said: {text}")
+            return text
+        except sr.UnknownValueError:
+            print("⚠️  Could not understand audio. Please speak clearly.")
+            return None
+        except sr.RequestError as e:
+            print(f"❌  STT service error: {e}")
+            return None
+
+    def speak(self, text: str):
+        """Convert text answer to speech."""
+        # pyttsx3 can stumble on special chars; clean lightly
+        clean = text.replace("•", "").replace("**", "")
+        self.tts_engine.say(clean)
+        self.tts_engine.runAndWait()
 
 class RAGApplication:
     def __init__(self, db_path=None):
@@ -110,8 +156,42 @@ Answer (use the documents above — be thorough and complete):"""
         return chain.invoke(question)
 
 
+def run_voice_mode(rag: RAGApplication, voice: VoiceAssistant):
+    """Continuous voice Q&A loop. Say 'exit' or 'quit' to stop."""
+    print("\n🔊  Voice Mode started. Say 'exit' or 'quit' to stop.\n")
+    while True:
+        question = voice.listen()
+        if question is None:
+            continue
+        if question.lower().strip() in {"exit", "quit", "stop"}:
+            print("👋  Exiting voice mode.")
+            voice.speak("Goodbye!")
+            break
+
+        print("\n🤖  Thinking...\n")
+        answer = rag.answer_query(question)
+        print(f"📝  Answer:\n{answer}\n")
+        voice.speak(answer)
+
+
+def run_text_mode(rag: RAGApplication):
+    print("\n⌨️  Text Mode. Type 'exit' to quit.\n")
+    while True:
+        question = input("Your question: ").strip()
+        if question.lower() in {"exit", "quit"}:
+            break
+        answer = rag.answer_query(question)
+        print(f"\n bot  Answer:\n{answer}\n")
+
 if __name__ == "__main__":
-    app = RAGApplication()
+    rag = RAGApplication()
+    voice=VoiceAssistant()
+
+    choice = input("Enter 1 for Voice_assistant: ")
+    if choice=='1':
+        run_voice_mode(rag,voice)
+    else:
+        run_text_mode(rag)
     tests = [
         "who is the CEO of Syandrix?",
         "what services does Syandrix offer?",
