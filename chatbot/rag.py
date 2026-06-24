@@ -34,25 +34,25 @@ class VoiceAssistant:
     def listen(self) -> str | None:
         """Record from microphone and return transcribed text."""
         with sr.Microphone() as source:
-            print("\n🎙️  Adjusting for ambient noise... please wait.")
+            print("\n  Adjusting for ambient noise... please wait.")
             self.recognizer.adjust_for_ambient_noise(source, duration=1)
-            print("🎙️  Listening... speak your question now.")
+            print("  Listening... speak your question now.")
             try:
                 audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=15)
             except sr.WaitTimeoutError:
-                print("⚠️  No speech detected. Try again.")
+                print("  No speech detected. Try again.")
                 return None
 
-        print("⏳  Transcribing...")
+        print("  Transcribing...")
         try:
             text = self.recognizer.recognize_google(audio)  # uses Google Web STT (free)
-            print(f"✅  You said: {text}")
+            print(f"  You said: {text}")
             return text
         except sr.UnknownValueError:
-            print("⚠️  Could not understand audio. Please speak clearly.")
+            print("  Could not understand audio. Please speak clearly.")
             return None
         except sr.RequestError as e:
-            print(f"❌  STT service error: {e}")
+            print(f"  STT service error: {e}")
             return None
 
     def speak(self, text: str):
@@ -158,19 +158,19 @@ Answer (use the documents above — be thorough and complete):"""
 
 def run_voice_mode(rag: RAGApplication, voice: VoiceAssistant):
     """Continuous voice Q&A loop. Say 'exit' or 'quit' to stop."""
-    print("\n🔊  Voice Mode started. Say 'exit' or 'quit' to stop.\n")
+    print("\n  Voice Mode started. Say 'exit' or 'quit' to stop.\n")
     while True:
         question = voice.listen()
         if question is None:
             continue
         if question.lower().strip() in {"exit", "quit", "stop"}:
-            print("👋  Exiting voice mode.")
+            print("  Exiting voice mode.")
             voice.speak("Goodbye!")
             break
 
-        print("\n🤖  Thinking...\n")
+        print("\n  Thinking...\n")
         answer = rag.answer_query(question)
-        print(f"📝  Answer:\n{answer}\n")
+        print(f"  Answer:\n{answer}\n")
         voice.speak(answer)
 
 

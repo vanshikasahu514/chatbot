@@ -31,3 +31,6 @@ django
 SpeechRecognition
 pyttsx3
 pyaudio
+
+# install ffmpg in pc then add bin path in env variable
+ pydub SpeechRecognition

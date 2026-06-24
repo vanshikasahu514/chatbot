@@ -25,14 +25,14 @@ def _get_rag():
 QUICK_REPLIES = {
     ("hello", "hi", "hey", "howdy"): [
         "Hello! I'm Syn, Syandrixin's AI assistant. How can I help you today?",
-        "Hi there! Welcome to Syandrixin. What can I do for you? 😊",
+        "Hi there! Welcome to Syandrixin. What can I do for you? ",
     ],
     ("bye", "goodbye", "see you"): [
-        "Goodbye! Have a great day! 👋",
+        "Goodbye! Have a great day! ",
         "See you later! Syandrixin is always here when you need us.",
     ],
     ("thanks", "thank you", "thx"): [
-        "You're welcome! 😊",
+        "You're welcome! ",
         "Happy to help! Is there anything else you need?",
     ],
     ("who are you", "what are you", "your name"): [
@@ -65,7 +65,7 @@ def get_response(user_input: str) -> str:
 
     # ── 1. Time ───────────────────────────────────────────────────────────
     if re.search(r"\btime\b", text) and any(w in text for w in ("what", "current", "now", "tell")):
-        return f"The current time is {datetime.now().strftime('%I:%M %p')} ⏰"
+        return f"The current time is {datetime.now().strftime('%I:%M %p')} "
 
     # ── 2. Quick replies ──────────────────────────────────────────────────
     for keywords, replies in QUICK_REPLIES.items():
